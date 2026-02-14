@@ -2,7 +2,12 @@ name: Deploy to Server
 
 on:
   repository_dispatch:
-    types: [deploy-to-server]
+    types: [ deploy-release ]
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
