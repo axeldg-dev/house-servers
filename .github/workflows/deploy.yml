@@ -1,0 +1,67 @@
+name: Deploy to Server
+
+on:
+  repository_dispatch:
+    types: [ deploy-release ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-to-server:
+    name: Deploy to Server
+    environment: app
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Résolution DNS fiable via Cloudflare
+      - name: Resolve server IP from DuckDNS
+        id: resolve-ip
+        run: |
+          echo "Resolving IP for ${{ vars.SERVER_HOST }} ..."
+          RESOLVED_IP=$(dig +short ${{ vars.SERVER_HOST }} @1.1.1.1 | tail -n1)
+          if [ -z "$RESOLVED_IP" ]; then
+            echo "❌ Failed to resolve IP for ${{ vars.SERVER_HOST }}"
+            exit 1
+          fi
+          echo "✅ Resolved IP: $RESOLVED_IP"
+          echo "RESOLVED_IP=$RESOLVED_IP" >> $GITHUB_ENV
+
+      - name: Create .env file for Docker Compose
+        working-directory: ./Infra
+        run: |
+          echo "UPLOAD_LOCATION=${{ secrets.UPLOAD_LOCATION }}" >> .env
+          echo "DB_DATA_LOCATION=${{ secrets.DB_DATA_LOCATION }}" >> .env
+          echo "IMMICH_VERSION=${{ vars.IMMICH_VERSION }}" >> .env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+          echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> .env
+          echo "DB_DATABASE_NAME=${{ secrets.DB_DATABASE_NAME }}" >> .env
+
+      - name: Copy files via SCP
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ env.RESOLVED_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: ./Infra/*
+          target: ~/homelab
+          port: 22
+          timeout: 60s
+
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ env.RESOLVED_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script_stop: true
+          timeout: 60s
+          script: |
+            cd ~/homelab/Infra
+            docker-compose down
+            docker-compose pull
+            docker-compose up -d --remove-orphans
