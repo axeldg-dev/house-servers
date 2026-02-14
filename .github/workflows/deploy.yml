@@ -8,6 +8,12 @@ on:
       version:
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., 1.0.0). Leave empty to deploy latest.'
+        required: false
+        default: 'latest'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
