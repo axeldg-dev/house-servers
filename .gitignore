@@ -1,3 +1,6 @@
 .idea
 .env
-/postgres
+
+# Immich
+*/Immich/postgres
+*/Immich/library
