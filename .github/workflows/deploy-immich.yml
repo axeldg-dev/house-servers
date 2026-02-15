@@ -58,7 +58,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: ./Infra/Immich/
-          target: ~/mnt/storage/
+          target: ~/external-disk-samsung/
           port: 22
           timeout: 60s
 
@@ -71,7 +71,7 @@ jobs:
           script_stop: true
           timeout: 60s
           script: |
-            cd ~/mnt/storage/Infra/Immich/
+            cd ~/external-disk-samsung/Infra/Immich/
             docker-compose down
             docker-compose pull
             docker-compose up -d --remove-orphans
